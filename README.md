@@ -1,12 +1,14 @@
 # Simple AI Resume Reviewer API
 
-This is a small FastAPI demo for learning how to connect an API to an AI model.
+This is a small FastAPI demo for learning how to connect an API to an AI model, stream responses into a browser, and keep short-term memory.
 
 The important files are:
 
-- `app/main.py` - API routes
-- `app/reviewer.py` - Gemini model call
+- `app/main.py` - two API routes
+- `app/frontend.py` - tiny frontend page
+- `app/reviewer.py` - Gemini model call and streaming logic
 - `app/schemas.py` - request and response shapes
+- `app/memory.py` - simple in-memory chat history
 
 ## Install
 
@@ -31,24 +33,35 @@ If you do not add an API key, the app returns a simple demo response instead.
 python -m uvicorn app.main:app --reload
 ```
 
-Open the docs:
+Open the frontend:
+
+```text
+http://127.0.0.1:8000/
+```
+
+Open the API docs:
 
 ```text
 http://127.0.0.1:8000/docs
 ```
 
-## Test Request
+## Streaming Chat Endpoint
 
-```powershell
-curl -X POST http://127.0.0.1:8000/review `
-  -H "Content-Type: application/json" `
-  -d "{\"resume_text\":\"Built APIs with Python and improved performance by 30%.\",\"target_role\":\"Backend Developer\"}"
+The frontend calls this endpoint and reads chunks as they arrive:
+
+```text
+POST /chat
 ```
+
+The same endpoint handles resume review, follow-up chat, streaming, and memory reset.
+Memory is stored in a Python dictionary while the server is running. Restarting the server clears it.
 
 ## How It Works
 
-1. The user sends resume text to `/review`.
-2. FastAPI validates the JSON body using `ReviewRequest`.
-3. `review_resume()` checks for `GEMINI_API_KEY`.
-4. If the key exists, it calls the Gemini model.
-5. If the key is missing, it returns a local demo review.
+1. The browser loads `/`.
+2. The user sends a message to `/chat`.
+3. FastAPI validates the JSON body using `ChatRequest`.
+4. `stream_chat_with_memory()` stores the user message by `session_id`.
+5. If `GEMINI_API_KEY` exists, it streams from Gemini.
+6. FastAPI sends chunks to the browser with `StreamingResponse`.
+7. The browser reads chunks with `fetch()` and appends them to the page.
